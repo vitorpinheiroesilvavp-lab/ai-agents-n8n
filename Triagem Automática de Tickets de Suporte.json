@@ -1,0 +1,724 @@
+{
+  "name": "Triagem Automática de Tickets de Suporte",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Abertura de Ticket - Suporte",
+        "formDescription": "Preencha os campos abaixo para enviar uma solicitação. Nossa equipe responderá em breve.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Nome:",
+              "fieldName": "nome",
+              "placeholder": "João Martins",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Email:",
+              "fieldType": "email",
+              "fieldName": "email",
+              "placeholder": "joao@hashtag.com",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Empresa:",
+              "fieldName": "empresa",
+              "placeholder": "Hashtag",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Assunto:",
+              "fieldName": "assunto",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Descreva o problema que você está enfrentando:",
+              "fieldType": "textarea",
+              "fieldName": "mensagem",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {
+          "appendAttribution": false,
+          "buttonLabel": "Enviar",
+          "respondWithOptions": {
+            "values": {
+              "formSubmittedText": "Seu ticket foi enviado com sucesso."
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.5,
+      "position": [
+        2096,
+        400
+      ],
+      "id": "99a87764-cb1f-484a-8b2f-c4acf1d3672e",
+      "name": "NovoTicket",
+      "webhookId": "e53bd224-cbfa-4efd-97c9-1170f1002e7d"
+    },
+    {
+      "parameters": {
+        "text": "={{ $json.mensagem }}",
+        "guardrails": {
+          "jailbreak": {
+            "value": {
+              "threshold": 0.7,
+              "customizePrompt": true
+            }
+          },
+          "topicalAlignment": {
+            "value": {
+              "threshold": 0.7,
+              "prompt": "O texto deve estar relacionado a suporte técnico de software/SaaS. Tópicos válidos: bugs, erros, problemas de acesso, lentidão, dúvidas de uso, pagamentos, cancelamento. Tópicos inválidos: assuntos pessoais, spam, conteúdo ofensivo, manipulação de IA."
+            }
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.guardrails",
+      "typeVersion": 2,
+      "position": [
+        2512,
+        400
+      ],
+      "id": "ad9eb0d4-cd8c-4335-88e0-55f734f35686",
+      "name": "Verificação"
+    },
+    {
+      "parameters": {
+        "model": "google/gemini-2.5-flash",
+        "options": {
+          "temperature": 0.1
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        2512,
+        576
+      ],
+      "id": "68daeb46-1143-4d4c-8ea0-764601d9f56e",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "gR1XTpxsL5gxzlhP",
+          "name": "OpenRouter - Pessoal"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        2832,
+        576
+      ],
+      "id": "96d8db03-5cfc-4e87-bde3-ccee39c6b933",
+      "name": "FaçaNada"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Novo ticket de suporte recebido:\n\nNome: {{ $('NovoTicket').item.json.nome }}\nEmail: {{ $('NovoTicket').item.json.email }}\nEmpresa: {{ $('NovoTicket').item.json.empresa }}\nAssunto: {{ $('NovoTicket').item.json.assunto }}\nMensagem: {{ $('NovoTicket').item.json.mensagem }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "Você é o sistema de triagem e atendimento automatizado da SaaSPro.\n\n## SUA FUNÇÃO\nAnalisar tickets recebidos, classificar, e **gerar uma SOLUÇÃO DIRETA** para o cliente sempre que possível. Não responda com \"vamos analisar e retornar\" — isso é inútil. Tente resolver.\n\n## CATEGORIAS\n- **bug**: Erro no sistema, funcionalidade quebrada, crash, erro 500/404\n- **feature_request**: Pedido de nova funcionalidade ou melhoria\n- **billing**: Fatura, cobrança, upgrade/downgrade de plano, cancelamento\n- **account**: Problemas de login, permissões, configurações de conta\n- **how_to**: Dúvida de como usar uma funcionalidade\n- **performance**: Lentidão, timeout, sistema lento\n\n## EQUIPES DE DESTINO\n- **engenharia**: bug, performance\n- **produto**: feature_request\n- **financeiro**: billing\n- **customer_success**: account, how_to\n\n## PRIORIDADES\n- **critica**: Sistema fora do ar, perda de dados, afeta todos os usuários\n- **alta**: Funcionalidade importante quebrada, afeta operação do cliente\n- **media**: Bug menor, dúvida operacional\n- **baixa**: Sugestão, elogio, dúvida simples\n\n## COMO GERAR A RESPOSTA AO CLIENTE\n1. Cumprimente o cliente pelo nome\n2. Identifique o problema descrito\n3. **PROPONHA UMA SOLUÇÃO CONCRETA** com passos claros. Exemplos:\n   - \"Câmera não conecta\": verificar drivers, testar em outro aplicativo, reiniciar serviço USB, atualizar firmware\n   - \"Erro 500 em relatórios\": limpar cache, verificar permissões, testar em modo anônimo\n   - \"Login não funciona\": resetar senha, verificar 2FA, limpar cookies\n4. Se for dúvida de uso: explique como usar a funcionalidade passo a passo\n5. Se for billing: explique políticas e oriente a próxima ação\n6. Termine dizendo \"Se a solução acima não resolver, nossa equipe {equipe} assumirá o caso\"\n\n## QUANDO ENCAMINHAR SEM TENTAR RESOLVER\n- Problema crítico (sistema fora do ar): apenas confirme recebimento urgente\n- Caso muito específico que exige investigação interna\n- Feature requests (não tem solução, só registrar)\n\n## INSTRUÇÕES OPERACIONAIS\n1. Use \"ConsultarBase\" para verificar o plano do cliente\n2. Clientes Enterprise/Corporate: eleve prioridade em 1 nível\n3. Menções a \"urgente\", \"produção\", \"todos usuários\": prioridade mínima = alta\n4. Inclua protocolo TK-{data}-{número} no final da resposta\n5. Nunca invente dados do cliente nem features que não existem\n\n## FORMATO DA RESPOSTA (resposta_cliente_html)\nUse HTML simples e estruturado:\n- `<p>` para parágrafos\n- `<b>` para negritos\n- `<ol>` e `<li>` para passos numerados\n- `<br>` para quebras de linha dentro de parágrafos\n- NUNCA use \\n (só HTML)\n\nExemplo:\n<p>Olá Henrique,</p>\n<p>Identifiquei que você está com problema de conexão na câmera.</p>\n<p><b>Tente os seguintes passos:</b></p>\n<ol>\n  <li>Verifique se o driver da câmera está atualizado</li>\n  <li>Teste a câmera em outro aplicativo</li>\n  <li>Reinicie o serviço USB do Windows</li>\n</ol>\n<p>Se após tentar os passos acima o problema persistir, nossa equipe de engenharia vai assumir o caso.</p>\n<p>Atenciosamente,<br>Equipe SaaSPro<br>Protocolo: TK-20260420-001</p>\n\n## REGRAS GERAIS\n- SEMPRE em português brasileiro\n- Tom empático, profissional e objetivo\n- NUNCA invente dados do cliente\n- NUNCA prometa prazos específicos (\"em 24h\") a menos que seja política conhecida\n- SEMPRE retorne HTML estruturado (nunca markdown nem texto puro)"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        3184,
+        384
+      ],
+      "id": "4f1ac221-617e-4bdc-a9c8-0d80b5187dc0",
+      "name": "AgenteTriagem"
+    },
+    {
+      "parameters": {
+        "model": "google/gemini-2.5-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        3120,
+        608
+      ],
+      "id": "fbbb32ca-731e-45e1-82f0-30c439f720d6",
+      "name": "OpenRouter Chat Model1",
+      "credentials": {
+        "openRouterApi": {
+          "id": "gR1XTpxsL5gxzlhP",
+          "name": "OpenRouter - Pessoal"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"categoria\": \"bug\",\n  \"prioridade\": \"alta\",\n  \"equipe\": \"engenharia\",\n  \"resumo\": \"Câmera não conecta no Nvidia Broadcast\",\n  \"impacto\": \"Cliente sem conseguir usar câmera\",\n  \"tem_solucao\": true,\n  \"resposta_cliente_html\": \"<p>Olá Henrique,</p><p>Identifiquei que sua câmera não está conectando...</p><ol><li>Atualize o driver da câmera</li><li>Teste em outro aplicativo</li></ol>\",\n  \"cliente_existente\": true,\n  \"plano_cliente\": \"Enterprise\"\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        3440,
+        608
+      ],
+      "id": "c7d95a7f-c962-4504-9d3d-ddcac04b7de4",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1KMyhsuzf2tk2Umh6y2x7F-xLI3DKiDhG9HuhTajL8eY",
+          "mode": "list",
+          "cachedResultName": "Tickets",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1KMyhsuzf2tk2Umh6y2x7F-xLI3DKiDhG9HuhTajL8eY/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Clientes",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1KMyhsuzf2tk2Umh6y2x7F-xLI3DKiDhG9HuhTajL8eY/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "email",
+              "lookupValue": "={{ $('NovoTicket').item.json.email }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        3280,
+        608
+      ],
+      "id": "d770e679-7005-4a5a-b5a8-597bad634945",
+      "name": "ConsultarBase",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "cZyeOxr2p6HG8kou",
+          "name": "Google Sheets - SaaSPro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "listId": "69f8b7292042e47c82cca425",
+        "name": "={{ $json.output.resumo }}",
+        "description": "=Cliente: {{ $('NovoTicket').item.json.nome }}\nPlano: {{ $json.output.plano_cliente }}\n\nCategoria: {{ $json.output.categoria }}\nEquipe: {{ $json.output.equipe }}\nImpacto: {{ $json.output.impacto }}",
+        "additionalFields": {
+          "idLabels": "={{ \n  $json.output.prioridade === 'critica' ? '69f8b7151573baa57b653aaa' : $json.output.prioridade === 'alta' ? '69f8b7151573baa57b653aa9' : $json.output.prioridade === 'media' ? '69f8b7151573baa57b653aa8' : '69f8b7151573baa57b653aa7'\n}}"
+        }
+      },
+      "type": "n8n-nodes-base.trello",
+      "typeVersion": 1,
+      "position": [
+        3744,
+        432
+      ],
+      "id": "089d9f96-b615-4ad0-a769-e76d29d1377a",
+      "name": "CriarCard",
+      "credentials": {
+        "trelloApi": {
+          "id": "H9gNQoo9xsfsBovt",
+          "name": "Trello - Pessoal"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "list",
+        "operation": "getAll",
+        "id": "doTzyF0X",
+        "returnAll": true,
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.trello",
+      "typeVersion": 1,
+      "position": [
+        2096,
+        688
+      ],
+      "id": "6c5291ab-52de-4e42-b239-ac8a3ab81025",
+      "name": "BuscarListas",
+      "credentials": {
+        "trelloApi": {
+          "id": "H9gNQoo9xsfsBovt",
+          "name": "Trello - Pessoal"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "label",
+        "boardId": {
+          "__rl": true,
+          "value": "doTzyF0X",
+          "mode": "id"
+        },
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.trello",
+      "typeVersion": 1,
+      "position": [
+        2096,
+        864
+      ],
+      "id": "756f75b7-bb37-4765-8346-75cd5b17be69",
+      "name": "BuscarEtiquetas",
+      "credentials": {
+        "trelloApi": {
+          "id": "H9gNQoo9xsfsBovt",
+          "name": "Trello - Pessoal"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "sendAndWait",
+        "sendTo": "henrique.n8n.7@gmail.com",
+        "subject": "=[Aprovação necessária] - Ticket {{ $('AgenteTriagem').item.json.output.prioridade.toUpperCase() }} - {{ $('AgenteTriagem').item.json.output.resumo }}",
+        "message": "=<div style=\"font-family: Arial, sans-serif; color: #1f2937; line-height: 1.5; max-width: 720px;\">\n\n  <h2 style=\"margin-bottom: 8px; color: #111827;\">\n    Aprovação de resposta da IA\n  </h2>\n\n  <p style=\"margin-top: 0; color: #4b5563;\">\n    Um novo ticket foi analisado pela inteligência artificial e precisa de aprovação antes do envio ao cliente.\n  </p>\n\n  <hr style=\"border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;\">\n\n  <h3 style=\"color: #111827; margin-bottom: 10px;\">\n    Dados do cliente\n  </h3>\n\n  <p>\n    <b>Nome:</b> {{ $('NovoTicket').item.json.nome }}<br>\n    <b>Email:</b> {{ $('NovoTicket').item.json.email }}<br>\n    <b>Empresa:</b> {{ $('NovoTicket').item.json.empresa }}<br>\n    <b>Plano:</b> {{ $('AgenteTriagem').item.json.output.plano_cliente }}\n  </p>\n\n  <h3 style=\"color: #111827; margin-bottom: 10px;\">\n    Detalhes do ticket\n  </h3>\n\n  <p>\n    <b>Assunto:</b> {{ $('NovoTicket').item.json.assunto }}<br>\n    <b>Categoria:</b> {{ $('AgenteTriagem').item.json.output.categoria }}<br>\n    <b>Prioridade:</b> {{ $('AgenteTriagem').item.json.output.prioridade }}<br>\n    <b>Equipe responsável:</b> {{ $('AgenteTriagem').item.json.output.equipe }}\n  </p>\n\n  <p>\n    <b>Impacto identificado:</b><br>\n    {{ $('AgenteTriagem').item.json.output.impacto }}\n  </p>\n\n  <p>\n    <b>Resumo gerado pela IA:</b><br>\n    {{ $('AgenteTriagem').item.json.output.resumo }}\n  </p>\n\n  <div style=\"background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin: 20px 0;\">\n    <h3 style=\"margin-top: 0; color: #111827;\">\n      Mensagem original do cliente\n    </h3>\n\n    <p style=\"margin-bottom: 0;\">\n      {{ $('NovoTicket').item.json.mensagem }}\n    </p>\n  </div>\n\n  <div style=\"background: #ecfdf5; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px; margin: 20px 0;\">\n    <h3 style=\"margin-top: 0; color: #065f46;\">\n      Resposta sugerida pela IA\n    </h3>\n\n    {{ $('AgenteTriagem').item.json.output.resposta_cliente_html }}\n  </div>\n\n  <hr style=\"border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;\">\n\n  <p style=\"color: #4b5563;\">\n    Revise a resposta acima e escolha uma das opções:\n  </p>\n\n</div>",
+        "approvalOptions": {
+          "values": {
+            "approvalType": "double",
+            "approveLabel": "Aprovar (enviar resposta)",
+            "disapproveLabel": "Rejeitar (responder manualmente)"
+          }
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        3952,
+        432
+      ],
+      "id": "9917e24d-3772-4164-b927-877705467458",
+      "name": "NotificarEquipe",
+      "webhookId": "cb1c0d90-4a82-4656-8e94-d1046c17baa5",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "XtlPJJuA9IEPiZXh",
+          "name": "Gmail - Pessoal"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "7433f368-da91-43bb-adea-558162c71fee",
+              "leftValue": "={{ $json.data.approved }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        4160,
+        432
+      ],
+      "id": "09ebd5be-6b3b-4074-b980-965482d3b5a3",
+      "name": "Aprovado?"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('NovoTicket').item.json.email }}",
+        "subject": "=Re: {{ $('NovoTicket').item.json.assunto }}",
+        "message": "={{ $('AgenteTriagem').item.json.output.resposta_cliente_html }}",
+        "options": {
+          "appendAttribution": false,
+          "senderName": "SaaSPro - Suporte"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        4368,
+        336
+      ],
+      "id": "62291175-8529-498d-bfd0-9e99ae9967cb",
+      "name": "EnviarResposta",
+      "webhookId": "4500e7b6-87b6-4e9a-a2af-0db9cde0ff42",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "XtlPJJuA9IEPiZXh",
+          "name": "Gmail - Pessoal"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "id": {
+          "__rl": true,
+          "value": "={{ $('CriarCard').item.json.id }}",
+          "mode": "id"
+        },
+        "updateFields": {
+          "idList": "69f8b754b537171b03d9d4ba"
+        }
+      },
+      "type": "n8n-nodes-base.trello",
+      "typeVersion": 1,
+      "position": [
+        4576,
+        336
+      ],
+      "id": "e885dd3a-36ec-4670-af03-96e86a820d23",
+      "name": "MoverCard",
+      "credentials": {
+        "trelloApi": {
+          "id": "H9gNQoo9xsfsBovt",
+          "name": "Trello - Pessoal"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "id": {
+          "__rl": true,
+          "value": "={{ $('CriarCard').item.json.id }}",
+          "mode": "id"
+        },
+        "updateFields": {
+          "idList": "69f8b77f5316b020fc16c428"
+        }
+      },
+      "type": "n8n-nodes-base.trello",
+      "typeVersion": 1,
+      "position": [
+        4368,
+        528
+      ],
+      "id": "abb4c23b-514f-48fc-b406-1ddaf35cb956",
+      "name": "MoverCard1",
+      "credentials": {
+        "trelloApi": {
+          "id": "H9gNQoo9xsfsBovt",
+          "name": "Trello - Pessoal"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "![Logo Hashtag](https://www.hashtagtreinamentos.com/wp-content/uploads/2022/05/Logo-Hashtag-Original-1024x458.png.webp)",
+        "height": 128,
+        "color": 7
+      },
+      "id": "ecfecaf3-7cd3-4f8e-91ee-53d024767301",
+      "name": "Sticky Note 7ed859a4",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1968,
+        -112
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## M5 - Case: Triagem Automatica de Tickets de Suporte\n\n**Cenario:** Empresa SaaS (SaaSPro) recebe tickets pelo site. IA classifica, consulta plano do cliente, cria card no Trello, notifica equipe no Slack e responde o cliente. Tudo em segundos.\n\n**Por que alguem pagaria:** Toda empresa com suporte precisa. Reduz tempo de resposta. Clientes Enterprise recebem prioridade automatica.\n\n**Nos novos:** Guardrails, Output Parser, Sheets Tool (READ), Trello, Slack\n\n**Configurar:** Webhook + Google Gemini + Google Sheets (aba Clientes) + Trello (board de suporte) + Slack (canal suporte-geral) + Gmail",
+        "height": 168,
+        "width": 1728,
+        "color": 7
+      },
+      "id": "bc707a64-ed2b-457b-abe0-c9d3e08b130e",
+      "name": "Sticky Note 3c58a2bf",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1968,
+        32
+      ]
+    },
+    {
+      "parameters": {
+        "content": "**1. Webhook**\nRecebe ticket via POST.\nDados: nome, email, empresa, assunto, mensagem.",
+        "height": 384,
+        "width": 380,
+        "color": 7
+      },
+      "id": "218ac625-39f2-4ed8-be98-df6e1a2553c5",
+      "name": "Sticky Note 52a54074",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1968,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "content": "**2. Guardrails**\nAnti-jailbreak + alinhamento topico.\nSo permite assuntos de suporte tecnico.\nSaida Fail: conecte manualmente a um Respond to Webhook com erro 400.",
+        "height": 840,
+        "width": 588,
+        "color": 7
+      },
+      "id": "9efde089-de53-4012-89c1-138e0dd3fd53",
+      "name": "Sticky Note 94ba514a",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2352,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "content": "**3. Agente de Triagem + Output Parser + Tool**\n\nParser forca JSON: categoria, prioridade, equipe, resumo, impacto, resposta, plano.\n\nTool consulta base de clientes (plano Enterprise = prioridade elevada).\n\nMencoes a \"urgente\"/\"producao\" = prioridade minima alta.",
+        "height": 840,
+        "width": 748,
+        "color": 7
+      },
+      "id": "86b9925b-2a9a-4039-9371-32c3c90e20ed",
+      "name": "Sticky Note 5f03da66",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2944,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "content": "",
+        "height": 1192,
+        "width": 2764,
+        "color": 7
+      },
+      "id": "db34606c-4513-4dce-839a-7b5a630743eb",
+      "name": "Sticky Note ddb0682d",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1952,
+        -128
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### Outras formas de usar este fluxo\n\n- Helpdesk de TI: triagem de chamados internos\n- E-commerce: classificacao de reclamacoes\n- Escola: demandas de pais e alunos\n- Clinica: encaminhamento por especialidade\n- Juridico: classificacao por area do direito\n\nA logica e a mesma: receber → validar → classificar → criar tarefa → notificar → responder",
+        "height": 208,
+        "width": 368
+      },
+      "id": "1ddc6e4d-54a4-4aec-bdbb-28f91e35c971",
+      "name": "Sticky Note c9c2fe1f",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        4320,
+        832
+      ]
+    },
+    {
+      "parameters": {
+        "content": "**5. Nós Auxiliares do Trello**\n\nUsado para buscar IDs no Trello.",
+        "height": 448,
+        "width": 368,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1968,
+        608
+      ],
+      "id": "d1d7a8db-a125-4b7a-a294-8e9be0abe1df",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "**4. Trello → Gmail**\n\nTrello: Card com prioridade no titulo, detalhes na descricao.\nGmail: Responde cliente com protocolo e proximo passo.\n\nTudo automatico, de ticket recebido a equipe notificada em segundos.",
+        "height": 840,
+        "width": 1004,
+        "color": 7
+      },
+      "id": "ade7f006-ffe1-46b9-819a-c657c8b615ab",
+      "name": "Sticky Note ddb0682d1",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        3696,
+        208
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "NovoTicket": {
+      "main": [
+        [
+          {
+            "node": "Verificação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Verificação",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificação": {
+      "main": [
+        [
+          {
+            "node": "AgenteTriagem",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "FaçaNada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AgenteTriagem",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AgenteTriagem",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ConsultarBase": {
+      "ai_tool": [
+        [
+          {
+            "node": "AgenteTriagem",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AgenteTriagem": {
+      "main": [
+        [
+          {
+            "node": "CriarCard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CriarCard": {
+      "main": [
+        [
+          {
+            "node": "NotificarEquipe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "NotificarEquipe": {
+      "main": [
+        [
+          {
+            "node": "Aprovado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aprovado?": {
+      "main": [
+        [
+          {
+            "node": "EnviarResposta",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "MoverCard1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "EnviarResposta": {
+      "main": [
+        [
+          {
+            "node": "MoverCard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "8400d27f-f008-454f-9d7e-4c2224f6ce9b",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "c082c024c19e659c9d54fd28dd5f330636a2c8178335a805ff229161f9af9186"
+  },
+  "id": "5oqgEgttUy3uJmTB",
+  "tags": []
+}
