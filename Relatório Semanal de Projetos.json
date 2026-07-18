@@ -1,0 +1,571 @@
+{
+  "name": "Relatório Semanal de Projetos",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtDay": [
+                1
+              ]
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "884aa30e-8055-4f29-bf60-cb2c1d2e455a",
+      "name": "Segunda8H"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "resource": "databasePage",
+        "operation": "getAll",
+        "databaseId": {
+          "__rl": true,
+          "value": "35e07ae5-9605-80c6-848a-e9208bc6b2e8",
+          "mode": "list",
+          "cachedResultName": "Projetos FlowWorks",
+          "cachedResultUrl": "https://www.notion.so/35e07ae5960580c6848ae9208bc6b2e8"
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        288,
+        0
+      ],
+      "id": "3e6f466f-c297-42a8-a7a1-2a2dda615f41",
+      "name": "BuscarProjetos",
+      "credentials": {
+        "notionOAuth2Api": {
+          "id": "9cBMfUd2tAugJs2F",
+          "name": "Notion - FlowWorks"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "bcb3debc-1529-4163-912f-55312576db94",
+              "name": "projeto",
+              "value": "={{ $json.property_nome_do_projeto }}",
+              "type": "string"
+            },
+            {
+              "id": "eac97446-ff2d-4d1c-97e0-874e136e7d01",
+              "name": "cliente",
+              "value": "={{ $json.property_cliente }}",
+              "type": "string"
+            },
+            {
+              "id": "ead046f2-db4d-4393-8e09-5180df41986a",
+              "name": "responsavel",
+              "value": "={{ $json.property_respons_vel }}",
+              "type": "string"
+            },
+            {
+              "id": "9a573bff-a7e5-4656-a5fe-e2b6d11fd357",
+              "name": "tipo",
+              "value": "={{ $json.property_t_ipo }}",
+              "type": "string"
+            },
+            {
+              "id": "8d5f10ad-c538-4b42-a333-bacc79a1818d",
+              "name": "prioridade",
+              "value": "={{ $json.property_prioridade }}",
+              "type": "string"
+            },
+            {
+              "id": "686edcd5-94ab-4bde-a4ca-684d81f1cc3a",
+              "name": "status",
+              "value": "={{ $json.property_status }}",
+              "type": "string"
+            },
+            {
+              "id": "8b1bfa7e-4865-423b-a416-409973422616",
+              "name": "prazo",
+              "value": "={{ $json.property_prazo.start }}",
+              "type": "string"
+            },
+            {
+              "id": "aeff48a6-5fce-4644-812b-b749a129dbe0",
+              "name": "progresso",
+              "value": "={{ $json.property_progresso }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        624,
+        64
+      ],
+      "id": "932deed0-2dc5-4529-b800-a04ca22c740d",
+      "name": "Dados"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "af8c0070-2dc3-47e2-86b1-6547380605a3",
+              "name": "dias_prazo",
+              "value": "={{ DateTime.fromISO($json.prazo).diffTo($today, 'days') }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        832,
+        64
+      ],
+      "id": "b14c4df4-9979-445d-843b-84a154eba5f9",
+      "name": "CalcularPrazo"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "886028f5-e009-4faf-9158-a927d2878306",
+              "name": "situacao",
+              "value": "={{ \n$json.dias_prazo < 0 ? \"atrasado\" :\n$json.dias_prazo <= 3 ? \"em_risco\" : \"no_prazo\"\n}}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1040,
+        64
+      ],
+      "id": "caed3d8e-5496-4be6-a031-09479b471f50",
+      "name": "CalcularSituacao"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "projetos",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1344,
+        64
+      ],
+      "id": "d6d919b2-40cf-475c-8242-9ddc9ced4969",
+      "name": "CombinarItens"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Hoje é  {{ $today.format('dd/MM/yyyy') }}.\n\nProjetos ativos na agência:\n\n{{ JSON.stringify($json.projetos, null, 2) }}",
+        "options": {
+          "systemMessage": "=Você é o assistente do gestor de uma agência de marketing digital chamada FlowWorks. Toda segunda-feira de manhã você envia para o gestor um briefing executivo direto no Slack, ajudando ele a saber em 30 segundos o que precisa fazer essa semana.\n\n## REGRA OURO\nO gestor vai ler isso no celular. Cada palavra precisa valer ouro. Sem enrolação, sem dados crus, sem listar todos os projetos. Só o que importa.\n\n## ESTRUTURA OBRIGATORIA DA RESPOSTA\n\nUse formatação Slack (mrkdwn):\n- *texto* para negrito (asterisco simples, NÃO duplo)\n- • para bullets\n- Quebras de linha reais (não \\n)\n- Emojis com moderação (no máximo 1 por seção)\n\nFormato:\n\n*Relatório Semanal — [dia, data]*\n\n*Visão geral:* [1 frase com números gerais: total de projetos ativos, quantos em risco]\n\n🚨 *Riscos criticos:*\n• *[Projeto Cliente]* — [motivo curto e direto, ex: deadline em 2 dias, 40% concluído]\n• [continuar para cada projeto atrasado]\n\n⚠️ *Em alerta:*\n• *[Projeto Cliente]* — [motivo, ex: progresso lento, prazo próximo]\n• [continuar para cada projeto em risco]\n\n✅ *Indo bem:*\n[1 frase resumindo. Ex: 7 projetos no prazo, Black Friday TechCorp perto da entrega]\n\n💡 *Recomendação da IA:* [1 frase clara e acionável sobre o que o gestor deveria priorizar HOJE, baseado nos riscos]\n\n## REGRAS\n- NÃO listar todos os projetos (foco nos que importam)\n- NÃO usar tabelas (Slack não renderiza bem)\n- NÃO usar markdown padrão (Slack tem o próprio)\n- NãO inventar dados nem sugerir ações genéricas\n- Se não houver riscos críticos, omita a seção\n- Se não houver projetos em alerta, omita a seção\n- A recomendação deve ser ESPECÍFICA, citar nome do projeto/cliente\n- Tom: direto, executivo, como um colega experiente que já olhou os dados por você"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1712,
+        64
+      ],
+      "id": "3dc21d4d-8b6e-4141-a899-48b56b112bd9",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "=C0B6N00H",
+          "mode": "id"
+        },
+        "text": "={{ $json.output }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [
+        2160,
+        64
+      ],
+      "id": "918cd87e-a547-4272-933e-4ce9cd5699f9",
+      "name": "EnviarRelatorio",
+      "webhookId": "52ad78ac-d42a-4faf-bda6-9c9d383c5376",
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "N9ei3WMEx4YQo0Wf",
+          "name": "Slack - FlowWorks"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "google/gemini-3.5-flash",
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1712,
+        224
+      ],
+      "id": "a98b62e9-ecd2-427e-af9f-70b703118a73",
+      "name": "Gemini3.5-Flash",
+      "credentials": {
+        "openRouterApi": {
+          "id": "gR1XTpxsL5gxzlhP",
+          "name": "OpenRouter - Pessoal"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "",
+        "height": 1136,
+        "width": 2452,
+        "color": 7
+      },
+      "id": "6c031d4b-23c3-49fa-906a-a19a24641990",
+      "name": "Sticky Note 142b93e3",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -96,
+        -432
+      ]
+    },
+    {
+      "parameters": {
+        "content": "![Logo Hashtag](https://www.hashtagtreinamentos.com/wp-content/uploads/2022/05/Logo-Hashtag-Original-1024x458.png.webp)",
+        "height": 144,
+        "color": 7
+      },
+      "id": "82a8acfe-bea7-4dc2-87e3-c869d7b0e681",
+      "name": "Sticky Note ca6388c5",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        -416
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## M6 — Briefing Inteligente de Segunda-Feira\n\n**Cenário:** Agência FlowWorks tem dezenas de projetos rodando em paralelo. Toda segunda às 8h, o sistema busca todos os projetos no Notion, identifica riscos e atrasos, e envia um briefing executivo direto pro Slack do gestor.\n\nO gestor lê em 30 segundos no celular e já sabe o que priorizar.\n\n**Nós ensinados:** Schedule, Notion, Edit Fields (com lógica), Aggregate, AI Agent (OpenRouter), Slack, Error Trigger",
+        "height": 200,
+        "width": 1500,
+        "color": 7
+      },
+      "id": "2dcdbdca-11fc-471b-bbca-2d1606cb6def",
+      "name": "Sticky Note f046d8e8",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        -272
+      ]
+    },
+    {
+      "parameters": {
+        "content": "**1. Schedule Trigger**\nDispara toda segunda às 8h.",
+        "height": 216,
+        "width": 268,
+        "color": 7
+      },
+      "id": "b657d153-038c-4b5d-b4ef-4fe2f2e6ac91",
+      "name": "Sticky Note a26a349b",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "content": "**2. Notion**\nLê TODOS os projetos da database.",
+        "height": 200,
+        "width": 300,
+        "color": 7
+      },
+      "id": "a109b6a9-41a8-4e57-98cf-f07985a36bf8",
+      "name": "Sticky Note b3a3c510",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        192,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "content": "**3. Edit Fields + Cálculos**\nRenomeia campos do Notion e calcula:\n• dias_para_prazo (a partir da data)\n• situacao: atrasado / em_risco / no_prazo\n\nIsso dá pra IA contexto pronto pra interpretar.",
+        "height": 328,
+        "width": 748,
+        "color": 7
+      },
+      "id": "01e9a6f7-299b-4b43-adee-461cb60cf3eb",
+      "name": "Sticky Note cdfa9b00",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        496,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "content": "**4. Aggregate**\nJunta todos os projetos num único item, num campo \"projetos\" (array).\nSem isso a IA receberia um projeto por vez.",
+        "height": 328,
+        "width": 300,
+        "color": 7
+      },
+      "id": "3764c781-1537-4510-932f-7a66a0376b3a",
+      "name": "Sticky Note e3318e29",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1248,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "content": "**5. AI Agent**\nGera o briefing executivo em formato Slack.\nDestaca riscos, alertas, e dá recomendação acionável.\nLê no celular, sem anexo.",
+        "height": 440,
+        "width": 492,
+        "color": 7
+      },
+      "id": "48826787-4b91-41f6-9ad0-d326e009f687",
+      "name": "Sticky Note 068c7620",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1552,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "content": "**6. Slack**\nPosta direto no canal do gestor.\nUsa mrkdwn (negrito com *asterisco*, emojis nativos).",
+        "height": 312,
+        "width": 300,
+        "color": 7
+      },
+      "id": "ab22d45e-18f4-4d6f-b208-b70282a346d1",
+      "name": "Sticky Note ca21bade",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2048,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "content": "**Error Trigger**\nFluxo paralelo que avisa o admin no Slack se algo falhar.",
+        "height": 248,
+        "width": 620,
+        "color": 7
+      },
+      "id": "ea16dc3d-0fdf-40bc-8386-86c864ef458b",
+      "name": "Sticky Note 80c4a0bf",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        448
+      ]
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        64,
+        528
+      ],
+      "id": "1b45c68c-e03d-4d43-a099-b6363daccf4f",
+      "name": "Error Trigger"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "user",
+        "user": {
+          "__rl": true,
+          "value": "U06S133CL86",
+          "mode": "list",
+          "cachedResultName": "henriqueabreulobo"
+        },
+        "text": "=🚨 *ERRO NO N8N*\n\nWorkflow: {{ $json.workflow.name }}\nNó com Erro: {{ $json.execution.lastNodeExecuted }}\n\nErro:\n{{ $json.execution.error.message }}\n\nURL: {{ $json.execution.url }}",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [
+        272,
+        528
+      ],
+      "id": "b144c981-4e19-426d-9387-87a5c438cb44",
+      "name": "EnviarErro",
+      "webhookId": "eb83b835-06c8-4aa6-b083-9beda41f96cd",
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "HtWP8up1iERFe4cp",
+          "name": "Slack - Pessoal"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Segunda8H": {
+      "main": [
+        [
+          {
+            "node": "BuscarProjetos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BuscarProjetos": {
+      "main": [
+        [
+          {
+            "node": "Dados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dados": {
+      "main": [
+        [
+          {
+            "node": "CalcularPrazo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CalcularPrazo": {
+      "main": [
+        [
+          {
+            "node": "CalcularSituacao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CalcularSituacao": {
+      "main": [
+        [
+          {
+            "node": "CombinarItens",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CombinarItens": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "EnviarRelatorio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini3.5-Flash": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "EnviarErro",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "errorWorkflow": "6pDVzKcZ24h6zDjF"
+  },
+  "versionId": "e90a4272-614d-4f89-9495-81c6049b4d65",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "c082c024c19e659c9d54fd28dd5f330636a2c8178335a805ff229161f9af9186"
+  },
+  "id": "2MSwzKM4HWYI5xhf",
+  "tags": []
+}
